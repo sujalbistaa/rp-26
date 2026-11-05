@@ -4,7 +4,6 @@ An officer uploads a photo of a suspect. The system finds the face, compares it 
 
 **The output is an investigative lead, never an identification.** A human checks every match before anyone acts on it.
 
-`CLAUDE.md` holds the full spec and design system. This file covers running it.
 
 ## Before this goes near real data
 
