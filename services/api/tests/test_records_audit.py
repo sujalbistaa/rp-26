@@ -170,3 +170,24 @@ def test_floor_can_be_raised_but_not_lowered(admin, calibration):
     assert raised["floor"] == pytest.approx(0.8)
     assert raised["floor_calibrated"] == pytest.approx(0.58)
     assert admin.patch(url, json={"floor": None}).json()["floor"] == pytest.approx(0.58)
+
+
+def test_analyst_removes_a_wrong_image_from_gallery_and_past_results(
+    analyst, officer, person, db, backing
+):
+    image_id = analyst.get(f"/records/{person['person_id']}").json()["images"][0]["id"]
+    found = search(officer, block_photo([RED], seed=3))
+    assert found["people"]
+
+    path = f"/records/{person['person_id']}/images/{image_id}/remove"
+    assert officer.post(path, json={"reason": "Wrong person on this file"}).status_code == 403
+    assert analyst.post(path, json={"reason": "short"}).status_code == 422
+    assert analyst.post(path, json={"reason": "Wrong person on this file"}).status_code == 204
+
+    assert analyst.get(f"/records/{person['person_id']}").json()["images"] == []
+    assert analyst.get(f"/records/images/{image_id}").status_code == 404
+    assert officer.get(f"/search/{found['id']}").json()["people"] == []
+    assert search(officer, block_photo([RED], seed=4))["people"] == []
+    row = db.query(AuditLog).filter_by(action="IMAGE_REMOVE").one()
+    assert row.detail["searches_affected"] == 1
+    assert analyst.post(path, json={"reason": "Wrong person on this file"}).status_code == 404

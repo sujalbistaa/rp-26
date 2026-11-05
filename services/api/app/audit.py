@@ -25,6 +25,9 @@ class Action(StrEnum):
     THRESHOLD_CHANGE = "THRESHOLD_CHANGE"
     USER_CHANGE = "USER_CHANGE"
     PROBE_PURGE = "PROBE_PURGE"
+    SEARCH_REFUSED = "SEARCH_REFUSED"
+    IMAGE_REMOVE = "IMAGE_REMOVE"
+    SESSION_PURGE = "SESSION_PURGE"
 
 
 def client_ip(request: Request | None) -> str | None:

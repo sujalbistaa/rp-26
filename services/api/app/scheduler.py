@@ -1,8 +1,8 @@
-"""Queues the daily probe purge. Runs as its own small process in compose."""
+"""Queues the daily probe and session purges. Runs as its own small process in compose."""
 
 import time
 
-from app.jobs import purge_probes, queue
+from app.jobs import purge_probes, purge_sessions, queue
 
 INTERVAL_SECONDS = 24 * 3600
 
@@ -10,6 +10,7 @@ INTERVAL_SECONDS = 24 * 3600
 def main() -> None:
     while True:
         queue().enqueue(purge_probes, job_timeout="1h")
+        queue().enqueue(purge_sessions, job_timeout="10m")
         time.sleep(INTERVAL_SECONDS)
 
 

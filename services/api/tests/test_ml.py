@@ -5,7 +5,16 @@ import pytest
 from app.config import Settings, get_settings
 from app.db.models import Band, Calibration
 from app.ml.align import CROP_SIZE, TEMPLATE, align
-from app.ml.calibrate import MAX_CONFIDENCE, Curve, degeneracy, fit, threshold_at_far
+from app.ml.calibrate import (
+    MAX_CONFIDENCE,
+    Curve,
+    degeneracy,
+    fit,
+    fit_fpir,
+    gallery_drifted,
+    threshold_at_far,
+    top_scores,
+)
 from app.ml.detect import Face, _nms
 from app.ml.embed import embed_crop
 from app.ml.quality import assess, estimate_yaw
@@ -165,3 +174,36 @@ def test_separated_scores_are_flagged_as_degenerate():
 
 def test_overlapping_scores_are_not_degenerate():
     assert degeneracy(fit(genuines(), impostors())) is None
+
+
+def test_fpir_refuses_targets_the_data_cannot_support():
+    rng = np.random.default_rng(0)
+    base = fit(rng.normal(0.7, 0.1, 2000), rng.normal(0.1, 0.1, 200_000))
+    with pytest.raises(ValueError, match="needs 3000"):
+        fit_fpir(base, rng.normal(0.3, 0.05, 2999), rng.normal(0.7, 0.1, 500), 1000)
+
+
+def test_fpir_thresholds_hold_their_targets():
+    rng = np.random.default_rng(0)
+    base = fit(rng.normal(0.7, 0.1, 2000), rng.normal(0.1, 0.1, 200_000))
+    nonmated = rng.normal(0.3, 0.05, 20_000)
+    result, report = fit_fpir(base, nonmated, rng.normal(0.7, 0.1, 500), 1000)
+    assert result.floor_cos <= result.possible_cos <= result.strong_cos
+    assert report["bands"]["STRONG"]["measured_fpir"] <= 1e-3
+    assert report["bands"]["POSSIBLE"]["measured_fpir"] <= 1e-2
+    assert report["bands"]["FLOOR"]["measured_fpir"] <= 1e-1
+    assert report["gallery_size"] == 1000
+
+
+def test_gallery_drift_warns_past_2x_either_way():
+    assert not gallery_drifted(1000, 2000)
+    assert gallery_drifted(1000, 2001)
+    assert gallery_drifted(1000, 499)
+    assert not gallery_drifted(None, 5000)
+
+
+def test_top_scores_never_use_the_probe_itself():
+    vectors = np.eye(4, dtype=np.float32)
+    people = np.array(["a", "a", "b", "b"])
+    nonmated, mated = top_scores(vectors, people, 10, np.random.default_rng(0))
+    assert nonmated.max() == 0 and mated.max() == 0

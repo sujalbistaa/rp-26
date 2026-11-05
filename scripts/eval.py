@@ -20,6 +20,10 @@ from _paths import ROOT
 
 from calibrate import embed_files  # noqa: E402
 
+from sqlalchemy import select  # noqa: E402
+
+from app.db.models import Calibration  # noqa: E402
+from app.db.session import new_session  # noqa: E402
 from app.ml.calibrate import threshold_at_far  # noqa: E402
 from app.pipeline import get_ml  # noqa: E402
 
@@ -35,12 +39,69 @@ def tar(genuine: np.ndarray, impostor: np.ndarray, far: float) -> float | None:
     return float((genuine >= threshold_at_far(impostor, far)).mean())
 
 
+def band_of(score: float, row: Calibration) -> str:
+    if score >= row.strong_cos:
+        return "STRONG"
+    if score >= row.possible_cos:
+        return "POSSIBLE"
+    return "WEAK" if score >= row.floor_cos else "NO MATCH"
+
+
+def per_search(probes: dict[str, np.ndarray], gallery_pairs: Path, ml) -> dict:
+    """Run held-out people through the active bands, against a gallery they aren't in.
+
+    Each held-out person is then enrolled with their other photos, to count true matches.
+    """
+    with gallery_pairs.open(newline="") as handle:
+        names = {r[c] for r in csv.DictReader(handle) for c in ("a", "b")}
+    gallery = embed_files(names, ml)
+    matrix = np.stack(list(gallery.values()))
+    with new_session() as db:
+        row = db.scalar(select(Calibration).where(Calibration.active))
+    if row is None:
+        sys.exit("no active calibration")
+
+    def person(name: str) -> str:
+        return Path(name).parent.name
+
+    nonmated: dict[str, int] = defaultdict(int)
+    mated: dict[str, int] = defaultdict(int)
+    top_one = mated_total = 0
+    for name, vector in probes.items():
+        impostor = float((matrix @ vector).max())
+        nonmated[band_of(impostor, row)] += 1
+        same = [v for n, v in probes.items() if n != name and person(n) == person(name)]
+        if same:
+            true_score = float((np.stack(same) @ vector).max())
+            mated_total += 1
+            mated[band_of(true_score, row)] += 1
+            top_one += true_score > impostor
+    out = {
+        "calibration_version": row.version,
+        "gallery_images": int(matrix.shape[0]),
+        "gallery_people": len({person(n) for n in gallery}),
+        "nonmated_searches": len(probes),
+        "nonmated_bands": dict(nonmated),
+        "mated_searches": mated_total,
+        "mated_bands": dict(mated),
+        "mated_rank1": top_one / max(mated_total, 1),
+    }
+    print("\nper-search report on held-out people")
+    print(json.dumps(out, indent=2))
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pairs", type=Path, default=ROOT / "data" / "eval" / "heldout.csv")
     parser.add_argument("--baseline", type=Path)
     parser.add_argument("--out", type=Path, default=ROOT / "data" / "eval" / "report.json")
     parser.add_argument("--gallery-size", type=int, default=18_204)
+    parser.add_argument(
+        "--gallery-pairs",
+        type=Path,
+        help="pairs file whose photos form the gallery. Adds the per-search report.",
+    )
     args = parser.parse_args()
 
     with args.pairs.open(newline="") as handle:
@@ -76,6 +137,9 @@ def main() -> None:
     print(f"expected false matches per search, gallery of {args.gallery_size:,} images:")
     for far in FARS:
         print(f"  at FAR {far:g}: {far * args.gallery_size:.2f}")
+
+    if args.gallery_pairs:
+        report["per_search"] = per_search(vectors, args.gallery_pairs, ml)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=2))

@@ -10,7 +10,7 @@ import { FormError } from "@/components/Field";
 import { Loading } from "@/components/Progress";
 import { BandLabel, Stamp } from "@/components/Stamp";
 import { messageOf, post } from "@/lib/api";
-import { count, date, percent, rank, stamp, wholePercent } from "@/lib/format";
+import { count, date, rank, stamp } from "@/lib/format";
 import { useKeys } from "@/lib/keys";
 import type { FaceBox, MatchImage, MatchPerson, Results } from "@/lib/types";
 import { useResource } from "@/lib/useResource";
@@ -18,6 +18,8 @@ import styles from "./page.module.css";
 
 const LEAD_NOTICE = "Investigative lead only. Verify manually before any action.";
 const FLOOR_STEP = 0.01;
+// A band marker, not a measurement. Officers get the band and the rank, never a percentage.
+const BAND_WIDTH: Record<MatchPerson["band"], string> = { STRONG: "100%", POSSIBLE: "66%", WEAK: "33%" };
 
 function qualityWarning(face: FaceBox | undefined) {
   if (face?.quality.too_blurry) return "This photo is blurry, so expect weaker matches.";
@@ -97,11 +99,10 @@ function MatchRow({ person, results, face, selected, onSelect }: RowProps) {
         </span>
         <BandLabel band={person.band} />
         <span className={styles.score}>
-          <span className={styles.percent}>{percent(person.confidence)}</span>
           <span className={styles.track} aria-hidden="true">
             <span
               className={`${styles.fill} ${styles[person.band.toLowerCase()]}`}
-              style={{ width: `${person.confidence * 100}%` }}
+              style={{ width: BAND_WIDTH[person.band] }}
             />
           </span>
         </span>
@@ -114,7 +115,7 @@ function MatchRow({ person, results, face, selected, onSelect }: RowProps) {
               <EvidenceTag
                 src={`/api/records/images/${image.image_id}?size=800`}
                 alt={`Gallery image ${image.position} of record ${person.record_id}`}
-                caption={`${imageCaption(image, person.images_total)} · ${percent(image.confidence)}`}
+                caption={`${imageCaption(image, person.images_total)} · ${image.band}`}
               />
             ) : null}
           </div>
@@ -129,11 +130,11 @@ function MatchRow({ person, results, face, selected, onSelect }: RowProps) {
                       type="button"
                       className={open ? `${styles.thumb} ${styles.thumbOpen}` : styles.thumb}
                       aria-pressed={open}
-                      aria-label={`Compare image ${item.position}, ${percent(item.confidence)}`}
+                      aria-label={`Compare image ${item.position}, ${item.band}`}
                       onClick={() => setImage(item)}
                     >
                       <img src={`/api/records/images/${item.image_id}?size=128`} alt="" width={64} height={64} />
-                      <span className={styles.thumbScore}>{percent(item.confidence)}</span>
+                      <span className={styles.thumbScore}>{item.band}</span>
                     </button>
                   </li>
                 );
@@ -188,7 +189,7 @@ function Sheet({ results, reload }: { results: Results; reload: () => Promise<vo
 
   const face = results.face_index != null ? results.faces[results.face_index] : undefined;
   const warning = results.low_quality ? qualityWarning(face) : null;
-  const floorLabel = wholePercent(floor);
+  const floorLabel = offset > 0 ? "the raised floor" : "the display floor";
   const calibratedFloor = results.floor ?? 0;
 
   const row = (person: MatchPerson, index: number) => (
@@ -225,7 +226,7 @@ function Sheet({ results, reload }: { results: Results; reload: () => Promise<vo
         </dl>
         <div className={styles.floor}>
           <span className="label">Floor</span>
-          <span className={styles.floorValue}>{floorLabel}</span>
+          <span className={styles.floorValue}>{offset > 0 ? "Raised" : "Calibrated"}</span>
           <Button
             size="small"
             aria-label="Lower the floor"
@@ -263,6 +264,11 @@ function Sheet({ results, reload }: { results: Results; reload: () => Promise<vo
         {results.calibration_synthetic ? (
           <p className={styles.warning}>
             <strong>Synthetic calibration.</strong> Fitted on test data. These numbers mean nothing for real casework.
+          </p>
+        ) : null}
+        {results.gallery_drifted ? (
+          <p className={styles.warning}>
+            <strong>Gallery size changed.</strong> It has moved more than 2x since calibration, so these bands are out of date.
           </p>
         ) : null}
         {warning ? (

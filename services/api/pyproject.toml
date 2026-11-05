@@ -18,7 +18,7 @@ dependencies = [
   "cryptography>=43",
   "numpy>=1.26,<3",
   "opencv-python-headless>=4.10",
-  "onnxruntime-gpu>=1.20; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "onnxruntime-gpu[cuda,cudnn]>=1.20; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "onnxruntime>=1.20; sys_platform != 'linux' or platform_machine != 'x86_64'",
   "scikit-learn>=1.5",
   "pillow>=11",

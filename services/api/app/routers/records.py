@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -7,9 +8,20 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import audit, images
 from app.audit import Action
-from app.db.models import AuditLog, Note, Person, PersonCase, PersonImage, Role, Search, User
+from app.db.models import (
+    AuditLog,
+    Note,
+    Person,
+    PersonCase,
+    PersonImage,
+    Role,
+    Search,
+    SearchResult,
+    User,
+)
 from app.db.session import get_db
 from app.schemas import (
+    ImageRemoveIn,
     LogRow,
     NoteIn,
     NoteOut,
@@ -80,12 +92,14 @@ def list_records(
         Person.record_id.ilike(term, escape="\\"), Person.full_name.ilike(term, escape="\\")
     )
     images_count = (
-        select(func.count()).where(PersonImage.person_id == Person.id).scalar_subquery()
+        select(func.count())
+        .where(PersonImage.person_id == Person.id, PersonImage.removed_at.is_(None))
+        .scalar_subquery()
     )
     cases_count = select(func.count()).where(PersonCase.person_id == Person.id).scalar_subquery()
     cover = (
         select(PersonImage.id)
-        .where(PersonImage.person_id == Person.id)
+        .where(PersonImage.person_id == Person.id, PersonImage.removed_at.is_(None))
         .order_by(PersonImage.enrolled_at, PersonImage.id)
         .limit(1)
         .scalar_subquery()
@@ -124,7 +138,7 @@ def gallery_image(
     storage: Storage = Depends(get_storage),
 ):
     image = db.get(PersonImage, image_id)
-    if image is None:
+    if image is None or image.removed_at is not None:
         raise HTTPException(http.HTTP_404_NOT_FOUND, "No such image.")
     return Response(
         images.render_jpeg(storage.get(image.storage_key), size),
@@ -285,3 +299,43 @@ def add_note(
     )
     db.commit()
     return NoteOut(id=note.id, body=note.body, author=user.officer_id, created_at=note.created_at)
+
+
+@router.post("/{person_id}/images/{image_id}/remove", status_code=http.HTTP_204_NO_CONTENT)
+def remove_image(
+    person_id: UUID,
+    image_id: UUID,
+    body: ImageRemoveIn,
+    request: Request,
+    user: User = Depends(require(Role.ANALYST)),
+    db: Session = Depends(get_db),
+    storage: Storage = Depends(get_storage),
+):
+    """Take a wrongly enrolled image out of the gallery and out of past results."""
+    image = db.get(PersonImage, image_id)
+    if image is None or image.person_id != person_id or image.removed_at is not None:
+        raise HTTPException(http.HTTP_404_NOT_FOUND, "No such image.")
+    affected = db.scalar(
+        select(func.count(func.distinct(SearchResult.search_id))).where(
+            SearchResult.image_id == image_id
+        )
+    )
+    original_sha256 = image.sha256
+    storage.delete(image.storage_key)
+    image.removed_at = datetime.now(UTC)
+    image.embedding_v1 = None
+    image.embedding_v2 = None
+    # Frees the hash, so the same photo can go on the right record.
+    image.sha256 = f"removed-{image.id.hex}"
+    audit.write(
+        db,
+        Action.IMAGE_REMOVE,
+        actor=user,
+        request=request,
+        probe_hash=original_sha256,
+        results_returned=affected,
+        target_type="person",
+        target_id=str(person_id),
+        detail={"image_id": str(image_id), "reason": body.reason, "searches_affected": affected},
+    )
+    db.commit()

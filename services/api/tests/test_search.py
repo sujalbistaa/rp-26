@@ -281,3 +281,12 @@ def test_amber_is_a_separate_identity(officer, analyst, gallery):
     enroll(analyst, "Subject Amber", block_photo([AMBER], seed=7))
     result = search(officer, block_photo([AMBER], seed=8))
     assert len(result["people"]) == 1
+
+
+def test_search_rate_limit_refuses_and_writes_an_audit_row(app, officer, calibration, db):
+    settings = get_settings().model_copy(update={"search_limit_per_hour": 1})
+    app.dependency_overrides[get_settings] = lambda: settings
+    assert probe(officer, block_photo([RED])).status_code == 201
+    refused = probe(officer, block_photo([RED], seed=2))
+    assert refused.status_code == 429
+    assert db.query(AuditLog).filter_by(action="SEARCH_REFUSED").count() == 1

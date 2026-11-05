@@ -1,11 +1,16 @@
 """Turns raw cosine into a calibrated confidence and the three band thresholds.
 
+Bands are per search. A false-match rate per comparison multiplies by gallery size, so
+thresholds come from FPIR: search people who aren't in the gallery, keep each top score, and
+set a threshold that only a target share of those searches clear. FNIR is the share of true
+matches a threshold misses. Both only hold for a gallery of about the calibrated size.
+
 Confidence is P(same person | cosine) from an isotonic regression, with genuine and impostor
 pairs weighted equally. It's a score on a fixed 50/50 prior, not the chance that a given
-search result is the right person: that also depends on gallery size, which is why the bands
-are set from false-match rate and not from confidence.
+search result is the right person, so officers never see it. It stays in the audit trail.
 """
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -16,6 +21,12 @@ from app.db.models import Band, Calibration
 STRONG_FAR = 1e-4
 POSSIBLE_FAR = 1e-3
 FLOOR_FAR = 1e-2
+STRONG_FPIR = 1e-3
+POSSIBLE_FPIR = 1e-2
+FLOOR_FPIR = 1e-1
+# Zero events in n trials puts the 95% upper bound at about 3 / n, so a target needs 3 / target.
+RULE_OF_THREE = 3
+MAX_GALLERY_DRIFT = 2.0
 # 1e-4 can't be estimated from fewer than ~10 / FAR impostor pairs.
 MIN_IMPOSTOR_PAIRS = 100_000
 MIN_GENUINE_PAIRS = 500
@@ -65,6 +76,90 @@ def fit(genuine: np.ndarray, impostor: np.ndarray) -> Fit:
         n_genuine=int(genuine.size),
         n_impostor=int(impostor.size),
     )
+
+
+def min_searches(target: float) -> int:
+    return math.ceil(RULE_OF_THREE / target)
+
+
+def fnir(mated: np.ndarray, threshold: float) -> float:
+    return float((mated < threshold).mean())
+
+
+def fpir(nonmated: np.ndarray, threshold: float) -> float:
+    return float((nonmated >= threshold).mean())
+
+
+def fit_fpir(
+    result: Fit, nonmated: np.ndarray, mated: np.ndarray, gallery_size: int
+) -> tuple[Fit, dict]:
+    """Replace a pair-based fit's thresholds with per-search ones. Refuses unsupported targets."""
+    short = [t for t in (STRONG_FPIR, POSSIBLE_FPIR, FLOOR_FPIR) if nonmated.size < min_searches(t)]
+    if short:
+        raise ValueError(
+            f"{nonmated.size} non-mated searches can't support FPIR {min(short):g}: "
+            f"it needs {min_searches(min(short))}"
+        )
+    floor = threshold_at_far(nonmated, FLOOR_FPIR)
+    possible = max(threshold_at_far(nonmated, POSSIBLE_FPIR), floor)
+    strong = max(threshold_at_far(nonmated, STRONG_FPIR), possible)
+    report = {
+        "gallery_size": gallery_size,
+        "nonmated_searches": int(nonmated.size),
+        "mated_searches": int(mated.size),
+        "bands": {
+            name: {
+                "target_fpir": target,
+                "cosine": cosine,
+                "measured_fpir": fpir(nonmated, cosine),
+                "fnir": fnir(mated, cosine),
+            }
+            for name, target, cosine in (
+                ("STRONG", STRONG_FPIR, strong),
+                ("POSSIBLE", POSSIBLE_FPIR, possible),
+                ("FLOOR", FLOOR_FPIR, floor),
+            )
+        },
+    }
+    fitted = Fit(
+        cos_knots=result.cos_knots,
+        conf_knots=result.conf_knots,
+        floor_cos=floor,
+        possible_cos=possible,
+        strong_cos=strong,
+        n_genuine=result.n_genuine,
+        n_impostor=result.n_impostor,
+    )
+    return fitted, report
+
+
+def top_scores(
+    vectors: np.ndarray, people: np.ndarray, gallery_size: int, rng: np.random.Generator
+) -> tuple[np.ndarray, np.ndarray]:
+    """Simulate searches on labelled photos, leaving each probe's own person out or in.
+
+    Non-mated: top score against a gallery of `gallery_size` images of other people.
+    Mated: the best score against the same person's other photos, the score a search needs
+    to clear to surface the true match.
+    """
+    scores = vectors @ vectors.T
+    nonmated, mated = [], []
+    for i in range(len(vectors)):
+        others = np.flatnonzero(people != people[i])
+        picked = rng.choice(others, min(gallery_size, others.size), replace=False)
+        nonmated.append(scores[i, picked].max())
+        same = np.flatnonzero(people == people[i])
+        same = same[same != i]
+        if same.size:
+            mated.append(scores[i, same].max())
+    return np.array(nonmated), np.array(mated)
+
+
+def gallery_drifted(calibrated: int | None, current: int | None) -> bool:
+    """True when the gallery has moved more than 2x from the size the bands were set on."""
+    if not calibrated or not current:
+        return False
+    return max(calibrated, current) / min(calibrated, current) > MAX_GALLERY_DRIFT
 
 
 def degeneracy(result: Fit) -> str | None:

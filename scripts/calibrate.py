@@ -16,16 +16,18 @@ import numpy as np
 
 from _paths import ROOT
 
-from sqlalchemy import update  # noqa: E402
+from sqlalchemy import func, select, update  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
-from app.db.models import Calibration  # noqa: E402
+from app.db.models import Calibration, PersonImage  # noqa: E402
 from app.db.session import new_session  # noqa: E402
 from app.ml.calibrate import (  # noqa: E402
     MIN_GENUINE_PAIRS,
     MIN_IMPOSTOR_PAIRS,
     degeneracy,
     fit,
+    fit_fpir,
+    top_scores,
 )
 from app.pipeline import ML, analyse, embed, get_ml  # noqa: E402
 
@@ -64,6 +66,12 @@ def score_pairs(
     return np.array(genuine), np.array(impostor)
 
 
+def current_gallery_size() -> int:
+    column = getattr(PersonImage, get_settings().embedding_column)
+    with new_session() as db:
+        return db.scalar(select(func.count()).where(column.is_not(None))) or 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pairs", type=Path, default=ROOT / "data" / "eval" / "pairs.csv")
@@ -71,6 +79,7 @@ def main() -> None:
     parser.add_argument("--synthetic", action="store_true", help="pairs are synthetic fixtures")
     parser.add_argument("--activate", action="store_true", help="make this version live")
     parser.add_argument("--allow-small", action="store_true", help="fit below the pair minimums")
+    parser.add_argument("--gallery-size", type=int, help="images in the gallery. Default: the DB")
     args = parser.parse_args()
 
     pairs = load_pairs(args.pairs)
@@ -87,7 +96,24 @@ def main() -> None:
             sys.exit(message)
         print(f"warning: {message}", file=sys.stderr)
 
-    result = fit(genuine, impostor)
+    gallery = args.gallery_size or current_gallery_size()
+    ordered = sorted(vectors)
+    people = np.array([Path(name).parent.name for name in ordered])
+    matrix = np.stack([vectors[name] for name in ordered])
+    nonmated, mated = top_scores(matrix, people, gallery, np.random.default_rng(1))
+    result, report = fit(genuine, impostor), None
+    try:
+        result, report = fit_fpir(result, nonmated, mated, gallery)
+    except ValueError as e:
+        if not args.allow_small:
+            sys.exit(str(e))
+        print(f"warning: {e}. Keeping per-comparison bands", file=sys.stderr)
+    if report:
+        print(f"gallery {gallery}, {report['nonmated_searches']} non-mated searches, "
+              f"{report['mated_searches']} mated")
+        for band, row in report["bands"].items():
+            print(f"  {band:<9} cosine {row['cosine']:.4f}  FPIR {row['measured_fpir']:.4%}  "
+                  f"FNIR {row['fnir']:.2%}")
     problem = degeneracy(result)
     if problem:
         sys.exit(f"refusing to store this fit: {problem}")
@@ -103,6 +129,8 @@ def main() -> None:
             strong_cos=result.strong_cos,
             n_genuine=result.n_genuine,
             n_impostor=result.n_impostor,
+            gallery_size=gallery if report else None,
+            fpir_report=report,
             synthetic=args.synthetic,
             active=args.activate,
             note=args.note,

@@ -9,13 +9,22 @@ from uuid import UUID, uuid4
 import numpy as np
 from redis import Redis
 from rq import Queue
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app import audit, images
 from app.audit import Action
 from app.config import Settings, get_settings
-from app.db.models import BatchStatus, EnrollBatch, ImageSource, Person, PersonImage, Search, User
+from app.db.models import (
+    AuthSession,
+    BatchStatus,
+    EnrollBatch,
+    ImageSource,
+    Person,
+    PersonImage,
+    Search,
+    User,
+)
 from app.db.session import new_session
 from app.enrollment import enroll_image, next_record_id
 from app.ml.align import align
@@ -192,6 +201,28 @@ def purge_probes() -> int:
         return purge_expired_probes(db, get_storage(), get_settings())
 
 
+def purge_expired_sessions(db: Session, settings: Settings) -> int:
+    """Delete sessions past the idle or absolute limit. They already can't sign anyone in."""
+    now = datetime.now(UTC)
+    result = db.execute(
+        delete(AuthSession).where(
+            or_(
+                AuthSession.last_seen_at < now - timedelta(minutes=settings.session_idle_minutes),
+                AuthSession.created_at < now - timedelta(hours=settings.session_max_hours),
+            )
+        )
+    )
+    if result.rowcount:
+        audit.write(db, Action.SESSION_PURGE, detail={"sessions": result.rowcount})
+    db.commit()
+    return result.rowcount
+
+
+def purge_sessions() -> int:
+    with new_session() as db:
+        return purge_expired_sessions(db, get_settings())
+
+
 def reembed_gallery(
     db: Session, ml: ML, storage: Storage, settings: Settings, column: str, batch_size: int = 64
 ) -> int:
@@ -199,7 +230,9 @@ def reembed_gallery(
     done = 0
     target = getattr(PersonImage, column)
     while True:
-        rows = db.scalars(select(PersonImage).where(target.is_(None)).limit(batch_size)).all()
+        rows = db.scalars(select(PersonImage)
+            .where(target.is_(None), PersonImage.removed_at.is_(None))
+            .limit(batch_size)).all()
         if not rows:
             return done
         for row in rows:

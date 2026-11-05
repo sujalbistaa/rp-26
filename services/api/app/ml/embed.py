@@ -34,6 +34,27 @@ class ArcFaceEmbedder:
         return self.session.run(None, {self.input_name: blob})[0]
 
 
+class SFaceEmbedder:
+    """OpenCV Zoo SFace (Apache-2.0). 128-d, and fed raw 0-255 RGB, unlike ArcFace.
+
+    The export takes one image at a time. Its vectors don't fit the 512-d gallery columns, so
+    going live on it would need a schema change as well as a re-embed.
+    """
+
+    def __init__(self, model_path: Path, version: str) -> None:
+        self.session = load_session(str(model_path))
+        self.input_name = self.session.get_inputs()[0].name
+        self.version = version
+
+    def embed(self, crops: np.ndarray) -> np.ndarray:
+        blobs = [
+            cv2.dnn.blobFromImage(crop, 1.0, (112, 112), (0, 0, 0), swapRB=True) for crop in crops
+        ]
+        return np.concatenate(
+            [self.session.run(None, {self.input_name: blob})[0] for blob in blobs]
+        )
+
+
 def embed_crop(embedder: Embedder, crop: np.ndarray) -> np.ndarray:
     """Normalise each view, average the crop with its mirror, then normalise the mean."""
     vectors = embedder.embed(np.stack([crop, crop[:, ::-1]]))

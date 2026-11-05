@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -25,7 +26,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.ml.align import align
-from app.ml.calibrate import Curve
+from app.ml.calibrate import Curve, gallery_drifted
 from app.ml.embed import embed_crop
 from app.pipeline import ML, analyse, get_ml
 from app.schemas import (
@@ -45,6 +46,7 @@ from app.storage import Storage, get_storage
 router = APIRouter(prefix="/search", tags=["search"])
 
 NO_FACE = "Couldn't find a face in this photo."
+RATE_LIMITED = "Too many searches in the last hour. Try again later."
 NO_CALIBRATION = "No active calibration. An admin has to fit and activate one before searching."
 
 
@@ -117,13 +119,18 @@ def _results(db: Session, search: Search) -> ResultsOut:
     totals = dict(
         db.execute(
             select(PersonImage.person_id, func.count())
-            .where(PersonImage.person_id.in_({r.person_id for r in search.results}))
+            .where(
+                PersonImage.person_id.in_({r.person_id for r in search.results}),
+                PersonImage.removed_at.is_(None),
+            )
             .group_by(PersonImage.person_id)
         ).all()
     )
     grouped: dict[int, list[SearchResult]] = defaultdict(list)
+    # A removed image was never evidence, so it drops out of past results too.
     for result in search.results:
-        grouped[result.person_rank].append(result)
+        if result.image.removed_at is None:
+            grouped[result.person_rank].append(result)
 
     people = []
     for rank in sorted(grouped):
@@ -133,7 +140,7 @@ def _results(db: Session, search: Search) -> ResultsOut:
             row.id
             for row in db.execute(
                 select(PersonImage.id)
-                .where(PersonImage.person_id == top.person_id)
+                .where(PersonImage.person_id == top.person_id, PersonImage.removed_at.is_(None))
                 .order_by(PersonImage.enrolled_at, PersonImage.id)
             )
         ]
@@ -182,6 +189,10 @@ def _results(db: Session, search: Search) -> ResultsOut:
         purged=search.purged_at is not None,
         calibration_version=search.calibration_version,
         calibration_synthetic=bool(search.calibration and search.calibration.synthetic),
+        gallery_drifted=bool(
+            search.calibration
+            and gallery_drifted(search.calibration.gallery_size, search.gallery_size)
+        ),
         floor=floor,
         people=people,
     )
@@ -209,6 +220,26 @@ def create_probe(
         raise HTTPException(
             http.HTTP_422_UNPROCESSABLE_CONTENT, "Give a reason of at least 10 characters."
         ) from e
+
+    recent = db.scalar(
+        select(func.count())
+        .select_from(Search)
+        .where(
+            Search.officer_id == user.id,
+            Search.created_at > datetime.now(UTC) - timedelta(hours=1),
+        )
+    )
+    if (recent or 0) >= settings.search_limit_per_hour:
+        audit.write(
+            db,
+            Action.SEARCH_REFUSED,
+            actor=user,
+            request=request,
+            case_number=case_number,
+            detail={"reason": "rate limit", "limit_per_hour": settings.search_limit_per_hour},
+        )
+        db.commit()
+        raise HTTPException(http.HTTP_429_TOO_MANY_REQUESTS, RATE_LIMITED)
 
     data = read_upload(file, settings)
     try:

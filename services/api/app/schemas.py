@@ -110,6 +110,7 @@ class ResultsOut(BaseModel):
     purged: bool
     calibration_version: int | None
     calibration_synthetic: bool
+    gallery_drifted: bool = False
     floor: float | None
     people: list[MatchPerson]
     notice: str = LEAD_NOTICE
@@ -166,6 +167,10 @@ class RecordRow(BaseModel):
 class RecordPage(BaseModel):
     total: int
     items: list[RecordRow]
+
+
+class ImageRemoveIn(BaseModel):
+    reason: str = Field(min_length=10, max_length=500)
 
 
 class RecordImage(Orm):

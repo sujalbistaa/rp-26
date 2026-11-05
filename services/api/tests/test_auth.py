@@ -158,3 +158,27 @@ def test_mock_login_refuses_disabled_accounts(mock_client, db):
     user.active = False
     db.commit()
     assert mock_client.post("/auth/dev-login", json={"officer_id": "OFF-9"}).status_code == 404
+
+
+def test_expired_sessions_are_purged_and_live_ones_stay(db, officer_user):
+    from datetime import UTC, datetime, timedelta
+
+    from app.config import get_settings
+    from app.db.models import AuthSession
+    from app.jobs import purge_expired_sessions
+
+    now = datetime.now(UTC)
+    db.add(
+        AuthSession(
+            token_hash="a" * 64, user_id=officer_user.id, created_at=now, last_seen_at=now
+        )
+    )
+    old = now - timedelta(days=2)
+    db.add(
+        AuthSession(
+            token_hash="b" * 64, user_id=officer_user.id, created_at=old, last_seen_at=old
+        )
+    )
+    db.commit()
+    assert purge_expired_sessions(db, get_settings()) == 1
+    assert {s.token_hash[0] for s in db.query(AuthSession).all()} == {"a"}

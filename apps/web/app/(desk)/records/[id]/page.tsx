@@ -94,8 +94,24 @@ function Summary({ record, searchId, editable, onChanged }: { record: Dossier; s
   );
 }
 
-function Photos({ record }: { record: Dossier }) {
+function Photos({ record, editable, onChanged }: { record: Dossier; editable: boolean; onChanged: () => void }) {
   const pad = (n: number) => String(n).padStart(2, "0");
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove(event: FormEvent<HTMLFormElement>, imageId: string) {
+    event.preventDefault();
+    const reason = String(new FormData(event.currentTarget).get("reason") ?? "");
+    try {
+      await post(`/records/${record.id}/images/${imageId}/remove`, { reason });
+      setRemoving(null);
+      setError(null);
+      onChanged();
+    } catch (e) {
+      setError(messageOf(e));
+    }
+  }
+
   if (record.images.length === 0) return <p className={table.empty}>No photos on this record.</p>;
   return (
     <ul className={styles.photos}>
@@ -106,6 +122,23 @@ function Photos({ record }: { record: Dossier }) {
             alt={`Image ${index + 1} of record ${record.record_id}`}
             caption={`IMG ${pad(index + 1)}/${pad(record.images.length)} · ENROLLED ${date(image.enrolled_at)} · SRC ${image.source}${image.low_quality ? " · LOW QUALITY" : ""}`}
           />
+          {editable && removing !== image.id ? (
+            <Button size="small" onClick={() => setRemoving(image.id)}>
+              Remove image
+            </Button>
+          ) : null}
+          {removing === image.id ? (
+            <form onSubmit={(event) => void remove(event, image.id)}>
+              <AreaField id={`remove-${image.id}`} label="Why is this image wrong" name="reason" required minLength={10} />
+              {error ? <FormError>{error}</FormError> : null}
+              <Button size="small" type="submit">
+                Confirm removal
+              </Button>
+              <Button size="small" onClick={() => setRemoving(null)}>
+                Keep image
+              </Button>
+            </form>
+          ) : null}
         </li>
       ))}
     </ul>
@@ -303,7 +336,7 @@ export default function RecordPage({
       </nav>
       <div className={styles.file}>
         {tab === "Summary" ? <Summary record={record} searchId={search} editable={editable} onChanged={() => void reload()} /> : null}
-        {tab === "Photos" ? <Photos record={record} /> : null}
+        {tab === "Photos" ? <Photos record={record} editable={editable} onChanged={() => void reload()} /> : null}
         {tab === "Cases" ? <Cases record={record} editable={editable} onChanged={() => void reload()} /> : null}
         {tab === "Notes" ? <Notes record={record} editable={editable} onChanged={() => void reload()} /> : null}
         {tab === "Log" ? <Log personId={record.id} /> : null}

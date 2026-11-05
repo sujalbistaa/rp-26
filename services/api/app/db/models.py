@@ -122,7 +122,9 @@ class Person(Base):
     )
 
     images: Mapped[list["PersonImage"]] = relationship(
-        back_populates="person", order_by="PersonImage.enrolled_at, PersonImage.id"
+        back_populates="person",
+        primaryjoin="and_(Person.id == PersonImage.person_id, PersonImage.removed_at.is_(None))",
+        order_by="PersonImage.enrolled_at, PersonImage.id",
     )
     cases: Mapped[list["PersonCase"]] = relationship(
         back_populates="person", order_by="PersonCase.created_at.desc()"
@@ -167,6 +169,8 @@ class PersonImage(Base):
     embedder_version: Mapped[str] = mapped_column(String(64))
     enrolled_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     enrolled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # Kept as a tombstone so past search results and audit rows still resolve.
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     person: Mapped[Person] = relationship(back_populates="images")
 
@@ -213,6 +217,9 @@ class Calibration(Base):
     floor_override_cos: Mapped[float | None] = mapped_column(Float)
     n_genuine: Mapped[int] = mapped_column(Integer)
     n_impostor: Mapped[int] = mapped_column(Integer)
+    # The gallery size the per-search bands were set on, and their FPIR and FNIR report.
+    gallery_size: Mapped[int | None] = mapped_column(Integer)
+    fpir_report: Mapped[dict | None] = mapped_column(JSONB)
     # True when fitted on synthetic fixtures. Production refuses to search with these.
     synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
     active: Mapped[bool] = mapped_column(Boolean, default=False)

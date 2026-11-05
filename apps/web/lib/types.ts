@@ -77,6 +77,7 @@ export interface Results {
   purged: boolean;
   calibration_version: number | null;
   calibration_synthetic: boolean;
+  gallery_drifted: boolean;
   floor: number | null;
   people: MatchPerson[];
   notice: string;

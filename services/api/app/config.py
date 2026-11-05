@@ -64,6 +64,8 @@ class Settings(BaseSettings):
 
     search_top_k: int = 200
     hnsw_ef_search: int = 100
+    require_gpu: bool = False
+    search_limit_per_hour: int = 120
 
     @model_validator(mode="after")
     def _refuse_unsafe_production(self) -> "Settings":
