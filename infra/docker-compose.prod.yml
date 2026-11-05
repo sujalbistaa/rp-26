@@ -32,6 +32,22 @@ x-api: &api
     db: { condition: service_healthy }
     redis: { condition: service_healthy }
 
+x-gpu: &gpu
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+
+x-gpu-env: &gpu-env
+  RKL_ENV: production
+  RKL_STORAGE_DIR: /evidence
+  RKL_MODEL_DIR: /models
+  SSL_CERT_FILE: /certs/ca.crt
+  # Startup fails if CUDA isn't really active. ORT would otherwise drop to CPU in silence.
+  RKL_REQUIRE_GPU: "true"
+
 services:
   db:
     ports: !reset []
@@ -117,12 +133,26 @@ services:
       - --proxy-headers
       - --forwarded-allow-ips
       - "*"
+    environment: *gpu-env
+    deploy: *gpu
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import ssl, urllib.request as u; u.urlopen('https://api:8100/healthz', context=ssl.create_default_context(cafile='/certs/ca.crt'), timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
     depends_on:
       migrate: { condition: service_completed_successfully }
 
   worker:
     <<: *api
     command: ["python", "-m", "app.worker"]
+    environment: *gpu-env
+    deploy: *gpu
     depends_on:
       migrate: { condition: service_completed_successfully }
 
@@ -138,6 +168,16 @@ services:
       dockerfile: apps/web/Dockerfile
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('https').get({host:'127.0.0.1',port:3100,path:'/sign-in',rejectUnauthorized:false},r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
     volumes:
       - ./certs/web.crt:/certs/web.crt:ro
       - ./certs/web.key:/certs/web.key:ro
@@ -159,7 +199,9 @@ services:
       - ./certs/ca.crt:/certs/ca.crt:ro
     networks: [internal, front]
     restart: unless-stopped
-    depends_on: [api, web]
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
 
 networks:
   # No route out. The app containers can't reach anything beyond the department network.

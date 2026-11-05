@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     quality_max_yaw: float = 45.0
 
     search_top_k: int = 200
-    hnsw_ef_search: int = 100
+    hnsw_ef_search: int = 400
     require_gpu: bool = False
     search_limit_per_hour: int = 120
 

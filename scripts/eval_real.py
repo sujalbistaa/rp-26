@@ -17,7 +17,11 @@ import numpy as np
 
 from _paths import ROOT
 
+from sqlalchemy import select  # noqa: E402
+
 from app.config import get_settings  # noqa: E402
+from app.db.models import Calibration  # noqa: E402
+from app.db.session import new_session  # noqa: E402
 from app.ml.calibrate import threshold_at_far  # noqa: E402
 from app.pipeline import analyse, embed, get_ml  # noqa: E402
 
@@ -110,6 +114,40 @@ def main() -> None:
         by_probe[views[i]][1] += 1
     lines += ["", "## Identification (1:N, leave one photo out)", "", f"- Rank-1: {pct(hits, total)}"]
     lines += [f"- Rank-1, probe view `{k}`: {pct(*v)}" for k, v in sorted(by_probe.items())]
+
+    with new_session() as db:
+        row = db.scalar(select(Calibration).where(Calibration.active))
+    if row is not None:
+        def band(score: float) -> str:
+            if score >= row.strong_cos:
+                return "STRONG"
+            if score >= row.possible_cos:
+                return "POSSIBLE"
+            return "WEAK" if score >= row.floor_cos else "NO MATCH"
+
+        mated: dict[str, int] = defaultdict(int)
+        nonmated: dict[str, int] = defaultdict(int)
+        for i in range(len(matrix)):
+            same = people == people[i]
+            others = same.copy()
+            others[i] = False
+            if others.any():
+                mated[band(float(scores[i][others].max()))] += 1
+            nonmated[band(float(scores[i][~same].max()))] += 1
+        lines += [
+            "",
+            f"## Active calibration v{row.version} applied to these photos",
+            "",
+            f"Synthetic: {row.synthetic}. Thresholds were set on "
+            f"{'synthetic faces' if row.synthetic else 'real data'}, and this gallery "
+            f"({len(matrix)} photos) is smaller than the calibrated one ({row.gallery_size}).",
+            "",
+            "| Band of the top score | True person enrolled | Person not enrolled |",
+            "|---|---|---|",
+        ]
+        for name in ("STRONG", "POSSIBLE", "WEAK", "NO MATCH"):
+            lines.append(f"| {name} | {pct(mated[name], sum(mated.values()))} | "
+                         f"{pct(nonmated[name], sum(nonmated.values()))} |")
 
     report = "\n".join(lines) + "\n"
     print(report)

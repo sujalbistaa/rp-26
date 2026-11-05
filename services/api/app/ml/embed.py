@@ -10,7 +10,7 @@ from typing import Protocol
 import cv2
 import numpy as np
 
-from app.ml.runtime import load_session
+from app.ml.runtime import infer, load_session
 
 
 class Embedder(Protocol):
@@ -31,7 +31,7 @@ class ArcFaceEmbedder:
         blob = cv2.dnn.blobFromImages(
             list(crops), 1 / 127.5, (112, 112), (127.5, 127.5, 127.5), swapRB=True
         )
-        return self.session.run(None, {self.input_name: blob})[0]
+        return infer(self.session, {self.input_name: blob})[0]
 
 
 class SFaceEmbedder:
@@ -50,9 +50,7 @@ class SFaceEmbedder:
         blobs = [
             cv2.dnn.blobFromImage(crop, 1.0, (112, 112), (0, 0, 0), swapRB=True) for crop in crops
         ]
-        return np.concatenate(
-            [self.session.run(None, {self.input_name: blob})[0] for blob in blobs]
-        )
+        return np.concatenate([infer(self.session, {self.input_name: b})[0] for b in blobs])
 
 
 def embed_crop(embedder: Embedder, crop: np.ndarray) -> np.ndarray:

@@ -1,5 +1,7 @@
 import logging
+import threading
 
+import numpy as np
 import onnxruntime as ort
 
 from app.config import get_settings
@@ -10,6 +12,9 @@ CPU = "CPUExecutionProvider"
 
 log = logging.getLogger(__name__)
 _preloaded = False
+# FastAPI runs requests on a thread pool. Twenty threads calling the GPU at once took p95 from
+# under a second to 42 seconds in scripts/load_gallery.py, so inference goes one call at a time.
+_inference = threading.Lock()
 
 
 def preload_cuda() -> None:
@@ -18,6 +23,11 @@ def preload_cuda() -> None:
     if not _preloaded and hasattr(ort, "preload_dlls"):
         ort.preload_dlls()
     _preloaded = True
+
+
+def infer(session: ort.InferenceSession, feeds: dict[str, np.ndarray]) -> list[np.ndarray]:
+    with _inference:
+        return session.run(None, feeds)
 
 
 def load_session(path: str) -> ort.InferenceSession:

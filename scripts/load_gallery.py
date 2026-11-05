@@ -32,7 +32,7 @@ DIM, IMAGES_PER_PERSON, TOP_K = 512, 4, 200
 CLEAN, WEAK, VERY_WEAK = 0.8, 0.55, 0.45
 EF_VALUES = (100, 200, 400, 800)
 OFFICERS = (1, 5, 20)
-OUT = ROOT / "docs" / "results" / "scale.md"
+OUT = ROOT / "docs" / "results" / "scale_latency_20k.md"
 
 
 def unit(x: np.ndarray) -> np.ndarray:
@@ -66,6 +66,8 @@ def load(vectors: np.ndarray, owner: np.ndarray) -> None:
                 copy.write_row((i, int(person), vector))
         start = time.perf_counter()
         db.execute("SET maintenance_work_mem = '1GB'")
+        # Parallel builds need more /dev/shm than a default container has.
+        db.execute("SET max_parallel_maintenance_workers = 0")
         db.execute(
             "CREATE INDEX ON images USING hnsw (v vector_cosine_ops) "
             "WITH (m = 16, ef_construction = 200)"
@@ -108,7 +110,6 @@ def recall(db, vectors, owner, centres, rng, probes: int) -> list[str]:
 
 def latency(images: list[np.ndarray], ml, ef: int, per_officer: int) -> list[str]:
     lines = ["| Officers | Searches | p50 ms | p95 ms | Max ms |", "|---|---|---|---|---|"]
-    lock = threading.Lock()  # Detect + embed share one GPU session set, as in one API worker.
     for officers in OFFICERS:
         times: list[float] = []
 
@@ -119,12 +120,10 @@ def latency(images: list[np.ndarray], ml, ef: int, per_officer: int) -> list[str
                 for _ in range(per_officer):
                     image = images[int(rng.integers(len(images)))]
                     start = time.perf_counter()
-                    with lock:
-                        faces = ml.detector.detect(image)
-                        vector = embed_crop(ml.embedder, align(image, faces[0].landmarks))
+                    faces = ml.detector.detect(image)
+                    vector = embed_crop(ml.embedder, align(image, faces[0].landmarks))
                     query(db, vector, ef)
-                    with threading.Lock():
-                        times.append(1000 * (time.perf_counter() - start))
+                    times.append(1000 * (time.perf_counter() - start))
 
         threads = [threading.Thread(target=officer, args=(n,)) for n in range(officers)]
         for t in threads:

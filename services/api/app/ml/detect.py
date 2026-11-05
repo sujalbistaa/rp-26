@@ -7,7 +7,7 @@ from typing import Protocol
 import cv2
 import numpy as np
 
-from app.ml.runtime import load_session
+from app.ml.runtime import infer, load_session
 
 INPUT_SIZE = 640
 STRIDES = (8, 16, 32)
@@ -73,7 +73,7 @@ class ScrfdDetector:
         blob = cv2.dnn.blobFromImage(
             canvas, 1 / 128, (INPUT_SIZE, INPUT_SIZE), (127.5, 127.5, 127.5), swapRB=True
         )
-        outputs = self.session.run(None, {self.input_name: blob})
+        outputs = infer(self.session, {self.input_name: blob})
 
         boxes, scores, points = [], [], []
         n = len(STRIDES)
