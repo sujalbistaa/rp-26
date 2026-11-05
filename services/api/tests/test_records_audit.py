@@ -191,3 +191,23 @@ def test_analyst_removes_a_wrong_image_from_gallery_and_past_results(
     row = db.query(AuditLog).filter_by(action="IMAGE_REMOVE").one()
     assert row.detail["searches_affected"] == 1
     assert analyst.post(path, json={"reason": "Wrong person on this file"}).status_code == 404
+
+
+def test_a_failed_commit_keeps_the_stored_image(analyst, person, db, backing, monkeypatch):
+    image_id = analyst.get(f"/records/{person['person_id']}").json()["images"][0]["id"]
+    stored = len(backing.objects) if hasattr(backing, "objects") else None
+
+    def fail():
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(db, "commit", fail)
+    with pytest.raises(RuntimeError):
+        analyst.post(
+            f"/records/{person['person_id']}/images/{image_id}/remove",
+            json={"reason": "Wrong person on this file"},
+        )
+    monkeypatch.undo()
+    db.rollback()
+    if stored is not None:
+        assert len(backing.objects) == stored
+    assert analyst.get(f"/records/images/{image_id}").status_code == 200

@@ -321,7 +321,6 @@ def remove_image(
         )
     )
     original_sha256 = image.sha256
-    storage.delete(image.storage_key)
     image.removed_at = datetime.now(UTC)
     image.embedding_v1 = None
     image.embedding_v2 = None
@@ -339,3 +338,5 @@ def remove_image(
         detail={"image_id": str(image_id), "reason": body.reason, "searches_affected": affected},
     )
     db.commit()
+    # After the commit: a failed commit must not leave a live row with no file.
+    storage.delete(image.storage_key)

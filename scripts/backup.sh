@@ -2,13 +2,26 @@
 # Back up Postgres and the encrypted evidence store. Keys are never included:
 # RKL_FIELD_KEY and RKL_STORAGE_KEY must be kept separately, offline.
 #
+# The dump holds face embeddings and names in the clear (address, phone and ID stay encrypted,
+# as do the images). Write it only to an encrypted disk.
+#
 #   scripts/backup.sh [dest]                 write dest/rkl-YYYYmmdd-HHMMSS/
 #   scripts/backup.sh --restore <dir> <db>   restore a dump into a new, empty database <db>
-#   scripts/backup.sh --verify <dir>         restore into a scratch database and compare counts
+#   scripts/backup.sh --verify <dir>         restore into a scratch database, compare with the
+#                                            counts taken when the backup was written
+#
+# RKL_BACKUP_TARGET=prod backs up the production stack, with evidence from its Docker volume.
+# Without it, the dev stack and data/evidence are used.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-COMPOSE=(docker compose -f "$ROOT/infra/docker-compose.yml")
+TARGET="${RKL_BACKUP_TARGET:-dev}"
+if [ "$TARGET" = prod ]; then
+  COMPOSE=(docker compose -p rklprod --env-file "$ROOT/.env.production"
+    -f "$ROOT/infra/docker-compose.yml" -f "$ROOT/infra/docker-compose.prod.yml")
+else
+  COMPOSE=(docker compose -f "$ROOT/infra/docker-compose.yml")
+fi
 EVIDENCE="${RKL_STORAGE_DIR:-$ROOT/data/evidence}"
 PSQL=("${COMPOSE[@]}" exec -T db psql -U rkl -v ON_ERROR_STOP=1)
 
@@ -33,21 +46,27 @@ case "${1:-}" in
     dir="$2"
     scratch="rkl_verify_$$"
     trap '"${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS $scratch" >/dev/null' EXIT
-    restore "$dir" "$scratch"
-    live="$(counts rkl)"
-    restored="$(counts "$scratch")"
-    echo "live     persons|images|audit|calibration: $live"
-    echo "restored persons|images|audit|calibration: $restored"
     (cd "$dir" && sha256sum -c --quiet SHA256SUMS)
     tar -tzf "$dir/evidence.tar.gz" > /dev/null
-    [ "$live" = "$restored" ] && echo "backup verified" || { echo "COUNTS DIFFER"; exit 1; }
+    restore "$dir" "$scratch"
+    expected="$(cat "$dir/counts.txt")"
+    restored="$(counts "$scratch")"
+    echo "at backup persons|images|audit|calibration: $expected"
+    echo "restored  persons|images|audit|calibration: $restored"
+    [ "$expected" = "$restored" ] && echo "backup verified" || { echo "COUNTS DIFFER"; exit 1; }
     ;;
   *)
     dest="${1:-$ROOT/data/backups}/rkl-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$dest"
+    chmod 700 "$dest"
     "${COMPOSE[@]}" exec -T db pg_dump -U rkl -d rkl -Fc > "$dest/db.dump"
-    tar -czf "$dest/evidence.tar.gz" -C "$(dirname "$EVIDENCE")" "$(basename "$EVIDENCE")"
-    (cd "$dest" && sha256sum db.dump evidence.tar.gz > SHA256SUMS)
+    counts rkl > "$dest/counts.txt"
+    if [ "$TARGET" = prod ]; then
+      "${COMPOSE[@]}" exec -T api tar -czf - -C / evidence > "$dest/evidence.tar.gz"
+    else
+      tar -czf "$dest/evidence.tar.gz" -C "$(dirname "$EVIDENCE")" "$(basename "$EVIDENCE")"
+    fi
+    (cd "$dest" && sha256sum db.dump evidence.tar.gz counts.txt > SHA256SUMS)
     echo "backup written to $dest"
     ;;
 esac

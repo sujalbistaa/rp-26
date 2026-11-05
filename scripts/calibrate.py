@@ -18,6 +18,8 @@ from _paths import ROOT
 
 from sqlalchemy import func, select, update  # noqa: E402
 
+from app import audit  # noqa: E402
+from app.audit import Action  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db.models import Calibration, PersonImage  # noqa: E402
 from app.db.session import new_session  # noqa: E402
@@ -66,6 +68,13 @@ def score_pairs(
     return np.array(genuine), np.array(impostor)
 
 
+def check_folders_match_labels(pairs: list[tuple[str, str, int]]) -> None:
+    """FPIR simulation takes a person from the parent folder, so the labels have to agree."""
+    wrong = sum(int(Path(a).parent == Path(b).parent) != same for a, b, same in pairs)
+    if wrong:
+        sys.exit(f"{wrong} pairs disagree with the folders. One folder per person is required")
+
+
 def current_gallery_size() -> int:
     column = getattr(PersonImage, get_settings().embedding_column)
     with new_session() as db:
@@ -97,9 +106,19 @@ def main() -> None:
         print(f"warning: {message}", file=sys.stderr)
 
     gallery = args.gallery_size or current_gallery_size()
+    if not gallery:
+        sys.exit("the gallery is empty. Enrol first, or pass --gallery-size")
+    check_folders_match_labels(pairs)
     ordered = sorted(vectors)
     people = np.array([Path(name).parent.name for name in ordered])
     matrix = np.stack([vectors[name] for name in ordered])
+    # A search can only be simulated against the photos we have. Store what was really tested,
+    # so the drift warning fires if the live gallery is much bigger.
+    available = len(ordered) - int(np.unique(people, return_counts=True)[1].max())
+    if gallery > available:
+        print(f"warning: only {available} photos to simulate a gallery of {gallery}. "
+              f"Bands are for {available} images", file=sys.stderr)
+        gallery = available
     nonmated, mated = top_scores(matrix, people, gallery, np.random.default_rng(1))
     result, report = fit(genuine, impostor), None
     try:
@@ -136,6 +155,23 @@ def main() -> None:
             note=args.note,
         )
         db.add(row)
+        db.flush()
+        if args.activate:
+            audit.write(
+                db,
+                Action.THRESHOLD_CHANGE,
+                actor_label="calibrate.py",
+                calibration_version=row.version,
+                target_type="calibration",
+                target_id=str(row.version),
+                detail={
+                    "activated": True,
+                    "synthetic": args.synthetic,
+                    "floor": result.floor_cos,
+                    "possible": result.possible_cos,
+                    "strong": result.strong_cos,
+                },
+            )
         db.commit()
         print(f"calibration v{row.version} {'active' if args.activate else 'stored, not active'}")
     print(

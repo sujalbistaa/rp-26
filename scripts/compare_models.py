@@ -9,10 +9,13 @@ Results go to docs/results/models.md.
 
 import argparse
 import csv
+import os
 import subprocess
 import time
 from collections import defaultdict
 from pathlib import Path
+
+os.environ["ORT_DISABLE_TELEMETRY"] = "1"
 
 import cv2
 import numpy as np

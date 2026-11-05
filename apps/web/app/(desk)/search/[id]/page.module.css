@@ -12,8 +12,6 @@
 .facts dt { padding-right: var(--s3); font-size: var(--t13); color: var(--ink-2); }
 .facts dd { font-family: var(--font-data); font-size: var(--t12); font-variant-numeric: tabular-nums slashed-zero; text-align: right; overflow-wrap: anywhere; line-height: 1.7; }
 
-.floor { display: flex; align-items: center; gap: var(--s2); }
-.floorValue { font-family: var(--font-data); font-size: var(--t18); font-variant-numeric: tabular-nums slashed-zero; margin-right: auto; }
 
 .list { min-width: 0; background: var(--surface); border: var(--rule); border-radius: var(--radius); overflow: hidden; }
 .listHead { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); padding: var(--s3) var(--s4); border-bottom: var(--rule); }

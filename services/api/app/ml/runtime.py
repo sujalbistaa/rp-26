@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 _preloaded = False
 # FastAPI runs requests on a thread pool. Twenty threads calling the GPU at once took p95 from
 # under a second to 42 seconds in scripts/load_gallery.py, so inference goes one call at a time.
+# The lock is per process, which is why the API runs a single uvicorn worker.
 _inference = threading.Lock()
 
 

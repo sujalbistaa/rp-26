@@ -4,9 +4,12 @@ from redis import Redis
 from rq import Worker
 
 from app.config import get_settings
+from app.pipeline import get_ml
 
 
 def main() -> None:
+    if get_settings().require_gpu:
+        get_ml()
     Worker(["rkl"], connection=Redis.from_url(get_settings().redis_url)).work()
 
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useMemo, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/Button";
 import { EvidenceTag } from "@/components/EvidenceTag";
@@ -17,7 +17,6 @@ import { useResource } from "@/lib/useResource";
 import styles from "./page.module.css";
 
 const LEAD_NOTICE = "Investigative lead only. Verify manually before any action.";
-const FLOOR_STEP = 0.01;
 // A band marker, not a measurement. Officers get the band and the rank, never a percentage.
 const BAND_WIDTH: Record<MatchPerson["band"], string> = { STRONG: "100%", POSSIBLE: "66%", WEAK: "33%" };
 
@@ -154,16 +153,11 @@ function MatchRow({ person, results, face, selected, onSelect }: RowProps) {
 
 function Sheet({ results, reload }: { results: Results; reload: () => Promise<void> }) {
   const router = useRouter();
-  const [offset, setOffset] = useState(0);
   const [showWeak, setShowWeak] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [attachError, setAttachError] = useState<string | null>(null);
 
-  const floor = (results.floor ?? 0) + offset;
-  const visible = useMemo(
-    () => results.people.filter((p) => p.confidence >= floor),
-    [results, floor],
-  );
+  const visible = results.people;
   const leads = visible.filter((p) => p.band !== "WEAK");
   const weak = visible.filter((p) => p.band === "WEAK");
   const listed = showWeak ? [...leads, ...weak] : leads;
@@ -189,8 +183,6 @@ function Sheet({ results, reload }: { results: Results; reload: () => Promise<vo
 
   const face = results.face_index != null ? results.faces[results.face_index] : undefined;
   const warning = results.low_quality ? qualityWarning(face) : null;
-  const floorLabel = offset > 0 ? "the raised floor" : "the display floor";
-  const calibratedFloor = results.floor ?? 0;
 
   const row = (person: MatchPerson, index: number) => (
     <MatchRow
@@ -224,26 +216,6 @@ function Sheet({ results, reload }: { results: Results; reload: () => Promise<vo
           <dt>Calibration</dt>
           <dd>V{results.calibration_version}</dd>
         </dl>
-        <div className={styles.floor}>
-          <span className="label">Floor</span>
-          <span className={styles.floorValue}>{offset > 0 ? "Raised" : "Calibrated"}</span>
-          <Button
-            size="small"
-            aria-label="Lower the floor"
-            disabled={offset <= 0}
-            onClick={() => setOffset((o) => Math.max(0, o - FLOOR_STEP))}
-          >
-            -
-          </Button>
-          <Button
-            size="small"
-            aria-label="Raise the floor"
-            disabled={calibratedFloor + offset >= 0.99}
-            onClick={() => setOffset((o) => o + FLOOR_STEP)}
-          >
-            +
-          </Button>
-        </div>
         {results.purged ? null : results.attached_to_case ? (
           <p className="label">Attached to case</p>
         ) : (
@@ -258,7 +230,7 @@ function Sheet({ results, reload }: { results: Results; reload: () => Promise<vo
         <header className={styles.listHead}>
           <h2 className={styles.panelTitle}>Possible matches</h2>
           <p className="muted">
-            {visible.length} {visible.length === 1 ? "person" : "people"} above {floorLabel}
+            {visible.length} {visible.length === 1 ? "person" : "people"} above the display floor
           </p>
         </header>
         {results.calibration_synthetic ? (
@@ -280,7 +252,7 @@ function Sheet({ results, reload }: { results: Results; reload: () => Promise<vo
         {visible.length === 0 ? (
           <div className={styles.none}>
             <p className={styles.noneTitle}>NO MATCH</p>
-            <p>No record above {floorLabel}. Try a sharper, front-facing photo.</p>
+            <p>No record above the display floor. Try a sharper, front-facing photo.</p>
             <Link href="/search" className={styles.open}>
               <Button as="span" variant="solid">
                 New search

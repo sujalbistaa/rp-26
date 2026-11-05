@@ -64,7 +64,8 @@ uv run python scripts/eval.py --baseline data/eval/baseline.json
 
 - The pairs file has columns `a,b,same`, with paths relative to `data/`.
 - `calibrate.py` refuses fewer than 100,000 impostor pairs, and fewer than 3 / target non-mated searches for an FPIR target: 3,000 for STRONG at 0.1%. It also refuses a curve where STRONG would show a low confidence.
-- `--gallery-size` sets the gallery the bands are for. The default is the current count in the database.
+- `--gallery-size` sets the gallery the bands are for. The default is the current count in the database. It can't exceed the photos available to simulate it.
+- Photos need one folder per person, because the FPIR simulation reads the person from the folder.
 - `eval.py` exits 1 if any slice drops more than 2 points against the baseline.
 - `scripts/reembed.py` moves the gallery to a new model. Search refuses to run if the active calibration was fitted on a different model.
 

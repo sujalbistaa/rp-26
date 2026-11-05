@@ -5,11 +5,14 @@
 Exits 1 if CUDA isn't active on both models, or if CPU and CUDA embeddings disagree.
 """
 
+import os
 import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
+
+os.environ["ORT_DISABLE_TELEMETRY"] = "1"
 
 import cv2
 import numpy as np

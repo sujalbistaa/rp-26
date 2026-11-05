@@ -124,8 +124,9 @@ services:
       - 0.0.0.0
       - --port
       - "8100"
+      # One process: the inference lock is per process, and the GPU runs one call at a time.
       - --workers
-      - "2"
+      - "1"
       - --ssl-keyfile
       - /certs/api.key
       - --ssl-certfile

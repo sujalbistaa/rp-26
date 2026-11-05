@@ -384,7 +384,8 @@ def my_searches(
 ):
     people = (
         select(func.count(func.distinct(SearchResult.person_id)))
-        .where(SearchResult.search_id == Search.id)
+        .join(PersonImage, SearchResult.image_id == PersonImage.id)
+        .where(SearchResult.search_id == Search.id, PersonImage.removed_at.is_(None))
         .scalar_subquery()
     )
     rows = db.execute(
@@ -423,7 +424,7 @@ def get_search(
         request=request,
         case_number=search.case_number,
         probe_hash=search.probe_sha256,
-        results_returned=len(search.results),
+        results_returned=sum(1 for r in search.results if r.image.removed_at is None),
         calibration_version=search.calibration_version,
         target_type="search",
         target_id=str(search.id),

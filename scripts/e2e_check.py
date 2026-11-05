@@ -3,7 +3,8 @@
     uv run python scripts/e2e_check.py --base http://127.0.0.1:3100 --concurrency 20
 
 Signs in through mock login, walks the main journey as an officer, then fires concurrent
-searches. Dev only: it needs RKL_DEV_LOGIN, which production refuses.
+searches. Dev only: it needs RKL_DEV_LOGIN, which production refuses. Start the API with
+RKL_SEARCH_LIMIT_PER_HOUR=100000, or the rate limit stops it part way.
 """
 
 import argparse
@@ -123,11 +124,12 @@ def main() -> None:
             t.join()
         if times:
             p95 = float(np.percentile(times, 95))
+            check(f"{officers} concurrent officers without errors", not errors, str(errors[:1]))
             print(f"LATENCY {officers} officers: {len(times)} searches, p50 "
                   f"{statistics.median(times):.0f} ms, p95 {p95:.0f} ms, errors {len(errors)} "
                   f"{errors[:1]}", flush=True)
         else:
-            print(f"LATENCY {officers}: no searches succeeded {errors[:1]}", flush=True)
+            check(f"{officers} concurrent officers", False, f"no searches succeeded {errors[:1]}")
 
     failed = [c for c in checks if not c[1]]
     print(f"{len(checks) - len(failed)}/{len(checks)} checks passed")
