@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const apiUrl = process.env.RKL_API_URL ?? "http://localhost:8100";
 
 const config: NextConfig = {
+  distDir: process.env.RKL_DIST_DIR ?? ".next",
   output: "standalone",
   poweredByHeader: false,
   devIndicators: false,

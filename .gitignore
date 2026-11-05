@@ -9,6 +9,7 @@ infra/certs/
 
 node_modules/
 .next/
+.next-real/
 *.tsbuildinfo
 next-env.d.ts
 
