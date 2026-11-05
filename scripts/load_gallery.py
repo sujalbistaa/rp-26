@@ -32,7 +32,7 @@ DIM, IMAGES_PER_PERSON, TOP_K = 512, 4, 200
 CLEAN, WEAK, VERY_WEAK = 0.8, 0.55, 0.45
 EF_VALUES = (100, 200, 400, 800)
 OFFICERS = (1, 5, 20)
-OUT = ROOT / "docs" / "results" / "scale_latency_20k.md"
+OUT = ROOT / "docs" / "results" / "scale.md"
 
 
 def unit(x: np.ndarray) -> np.ndarray:

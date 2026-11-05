@@ -15,6 +15,6 @@ WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 COPY services/api/app ./app
 COPY services/api/alembic.ini ./
-ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 ORT_DISABLE_TELEMETRY=1
 USER rkl
 EXPOSE 8100

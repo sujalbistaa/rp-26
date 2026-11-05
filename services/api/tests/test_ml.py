@@ -207,3 +207,11 @@ def test_top_scores_never_use_the_probe_itself():
     people = np.array(["a", "a", "b", "b"])
     nonmated, mated = top_scores(vectors, people, 10, np.random.default_rng(0))
     assert nonmated.max() == 0 and mated.max() == 0
+
+
+def test_onnx_runtime_telemetry_is_off():
+    import os
+
+    import app.ml.runtime  # noqa: F401
+
+    assert os.environ["ORT_DISABLE_TELEMETRY"] == "1"

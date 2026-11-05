@@ -7,7 +7,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_FIELD_KEY = "ZGV2LW9ubHktZmllbGQta2V5LW5vdC1mb3ItcHJvZCE="  # 32 bytes, base64
 DEV_STORAGE_KEY = "ZGV2LW9ubHktaW1hZ2Uta2V5LW5vdC1mb3ItcHJvZCE="  # 32 bytes, base64
-REPO_ROOT = Path(__file__).resolve().parents[3]
+# Three levels up in the repo. A container has the app at /app/app, with fewer parents.
+_PARENTS = Path(__file__).resolve().parents
+REPO_ROOT = _PARENTS[min(3, len(_PARENTS) - 1)]
 
 
 class Settings(BaseSettings):

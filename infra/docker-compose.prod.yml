@@ -200,8 +200,9 @@ services:
     networks: [internal, front]
     restart: unless-stopped
     depends_on:
-      api: { condition: service_healthy }
-      web: { condition: service_healthy }
+      # nginx resolves its upstreams once, so a recreated container needs an edge restart.
+      api: { condition: service_healthy, restart: true }
+      web: { condition: service_healthy, restart: true }
 
 networks:
   # No route out. The app containers can't reach anything beyond the department network.

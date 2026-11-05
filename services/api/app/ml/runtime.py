@@ -1,10 +1,19 @@
 import logging
+import os
 import threading
 
-import numpy as np
-import onnxruntime as ort
+# ORT builds in Microsoft telemetry (1DS). This app makes zero external calls. The variable has
+# to be set before ORT starts. disable_telemetry_events() alone left the connection in place.
+os.environ["ORT_DISABLE_TELEMETRY"] = "1"
 
-from app.config import get_settings
+import numpy as np  # noqa: E402
+import onnxruntime as ort  # noqa: E402
+
+from app.config import get_settings  # noqa: E402
+
+# ORT builds in Microsoft telemetry. This app makes zero external calls, so it's always off.
+if hasattr(ort, "disable_telemetry_events"):
+    ort.disable_telemetry_events()
 
 ERROR_ONLY = 3
 CUDA = "CUDAExecutionProvider"

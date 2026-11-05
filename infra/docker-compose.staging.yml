@@ -1,0 +1,13 @@
+# Staging overlay for a demo on synthetic data. Add it after the production files:
+#   docker compose ... -f infra/docker-compose.prod.yml -f infra/docker-compose.staging.yml up -d
+#
+# Production refuses a synthetic calibration, and it should. This keeps every container, TLS hop
+# and network rule, and changes one thing: RKL_ENV=dev, so a synthetic curve can run a search.
+# Never use this with real data.
+services:
+  api:
+    environment:
+      RKL_ENV: dev
+  worker:
+    environment:
+      RKL_ENV: dev
