@@ -1,0 +1,7 @@
+data
+**/.venv
+**/node_modules
+**/.next
+**/__pycache__
+infra/certs
+.env*

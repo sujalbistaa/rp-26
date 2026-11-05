@@ -1,0 +1,4 @@
+.wrap { display: grid; gap: var(--s1); }
+.track { height: 4px; background: var(--surface-2); border-radius: var(--radius); overflow: hidden; }
+.fill { height: 100%; background: var(--navy); transition: width var(--snap); }
+.loading { max-width: var(--page); margin: 0 auto; padding: var(--s5); }

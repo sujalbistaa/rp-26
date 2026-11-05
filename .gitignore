@@ -1,0 +1,25 @@
+# Never commit faces, names or case data.
+data/
+!data/.gitkeep
+
+.env
+.env.*
+!.env.example
+infra/certs/
+
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+!.env.production.example
+!.env.production.example
+
+# Owner reference material: real photos and credentials. Never commit.
+resources/

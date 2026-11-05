@@ -1,0 +1,28 @@
+.button {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: var(--t15);
+  font-weight: 600;
+  line-height: 1.2;
+  padding: var(--s2) var(--s4);
+  background: var(--surface);
+  color: var(--navy);
+  border: 1px solid var(--navy);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  transition: background var(--snap), color var(--snap);
+}
+[data-theme="night"] .button { color: var(--ink); border-color: var(--ink-2); }
+.small { padding: var(--s1) var(--s3); font-size: var(--t13); }
+.big { width: 100%; padding: var(--s3) var(--s4); font-size: var(--t18); }
+.solid { background: var(--navy); color: var(--on-navy); }
+[data-theme="night"] .solid { background: var(--navy-2); color: var(--on-navy); }
+.danger { color: var(--danger); border-color: var(--danger); }
+
+.button:hover:not(:disabled) { background: var(--surface-2); }
+.solid:hover:not(:disabled) { background: var(--navy-2); }
+.danger:hover:not(:disabled) { background: var(--danger-tint); }
+.button:active:not(:disabled) { transform: translateY(1px); }
+.button:disabled { color: var(--ink-2); border-color: var(--line); background: var(--surface-2); cursor: not-allowed; }

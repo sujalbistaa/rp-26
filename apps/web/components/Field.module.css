@@ -1,0 +1,11 @@
+.row { display: grid; gap: var(--s1); padding: var(--s2) var(--s4); }
+.label { font-size: var(--t13); font-weight: 600; color: var(--ink); }
+.hint { margin-left: var(--s2); font-weight: 400; color: var(--ink-2); }
+.cell { min-width: 0; display: flex; }
+.input { width: 100%; padding: var(--s2) var(--s3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-size: var(--t15); resize: vertical; }
+.input:hover { border-color: var(--ink-2); }
+.input:focus-visible { outline-offset: 0; border-color: var(--navy); }
+.mono { font-family: var(--font-data); font-variant-numeric: tabular-nums slashed-zero; }
+.input::placeholder { color: var(--ink-2); opacity: 1; }
+.input::file-selector-button { margin-right: var(--s3); padding: var(--s1) var(--s3); background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font-size: var(--t13); font-weight: 600; cursor: pointer; }
+.error { margin: var(--s3) var(--s4) 0; padding: var(--s2) var(--s3); background: var(--danger-tint); color: var(--danger); border-radius: var(--radius); font-weight: 600; }

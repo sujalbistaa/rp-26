@@ -1,0 +1,12 @@
+/* The page title band: a khaki tint with a uniform-khaki rule. */
+.title { background: var(--khaki-tint); border-bottom: 2px solid var(--khaki); }
+.inner { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s5); max-width: var(--page); margin: 0 auto; padding: var(--s5) var(--s5) var(--s4); }
+.en { font-size: var(--t32); font-weight: 700; line-height: 1.1; }
+.or { margin-top: 2px; font-family: var(--font-odia); font-size: var(--t18); font-weight: 500; color: var(--khaki-ink); }
+.aside { flex: none; text-align: right; font-family: var(--font-data); font-size: var(--t13); color: var(--ink-2); }
+
+.section { display: flex; align-items: baseline; gap: var(--s2); padding: var(--s3) var(--s4); border-bottom: var(--rule); font-weight: 400; }
+.sectionEn { font-size: var(--t18); font-weight: 700; line-height: 1.2; }
+.sectionOr { font-family: var(--font-odia); font-size: var(--t13); font-weight: 500; color: var(--khaki-ink); }
+
+@media (max-width: 760px) { .inner { flex-direction: column; align-items: flex-start; gap: var(--s1); padding: var(--s4); } .aside { text-align: left; } }

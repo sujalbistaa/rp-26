@@ -1,0 +1,39 @@
+.skip { position: absolute; left: var(--s2); top: -100px; z-index: 50; padding: var(--s2) var(--s3); background: var(--navy); color: var(--on-navy); }
+.skip:focus { top: var(--s2); }
+
+.header { background: var(--surface); }
+.headerInner { display: flex; justify-content: space-between; align-items: center; gap: var(--s5); max-width: var(--page); margin: 0 auto; padding: var(--s3) var(--s5); }
+.brand { display: grid; text-decoration: none; color: var(--ink); }
+.wordmark { font-size: var(--t24); font-weight: 800; line-height: 1.1; color: var(--navy); }
+[data-theme="night"] .wordmark { color: var(--ink); }
+.brandSub { display: flex; gap: var(--s2); align-items: baseline; font-size: var(--t13); color: var(--ink-2); }
+.odia { font-family: var(--font-odia); font-weight: 500; color: var(--khaki-ink); }
+
+.tools { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; justify-content: flex-end; }
+.who { display: grid; justify-items: end; padding-right: var(--s3); line-height: 1.25; }
+.toolLink { text-decoration: none; }
+
+/* The tricolour navbar: three flat bands, with the links on the white one. */
+.nav { background: var(--band-white); border-top: 12px solid var(--saffron); border-bottom: 12px solid var(--india-green); }
+.tabs { display: flex; gap: var(--s1); max-width: var(--page); margin: 0 auto; padding: 0 var(--s5); overflow-x: auto; }
+.tab { display: block; padding: var(--s3) var(--s4); font-size: var(--t15); font-weight: 600; color: var(--navy); text-decoration: none; white-space: nowrap; transition: background var(--snap); }
+[data-theme="night"] .tab { color: var(--navy); }
+.tab:hover { background: var(--surface-2); }
+[data-theme="night"] .tab:hover { background: var(--on-navy-2); }
+.tab:focus-visible { outline-color: var(--navy); outline-offset: -4px; }
+.active, .active:hover, [data-theme="night"] .active, [data-theme="night"] .active:hover { background: var(--navy); color: var(--on-navy); }
+
+.frame { min-height: 100vh; display: flex; flex-direction: column; }
+.main { flex: 1; min-width: 0; }
+
+.foot { border-top: var(--rule); background: var(--surface); }
+.footInner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s3); max-width: var(--page); margin: 0 auto; padding: var(--s3) var(--s5); font-size: var(--t13); color: var(--ink-2); }
+.keys { font-family: var(--font-data); font-size: var(--t12); }
+
+@media (max-width: 760px) {
+  .headerInner { flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s3) var(--s4); }
+  .who { display: none; }
+  .tools { justify-content: flex-start; }
+  .tabs { padding: 0 var(--s2); }
+  .keys { display: none; }
+}

@@ -1,0 +1,31 @@
+.content { display: grid; gap: var(--s5); max-width: var(--page); margin: 0 auto; padding: var(--s5); }
+.desk { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: var(--s5); align-items: stretch; }
+
+.zone { display: flex; align-items: center; justify-content: center; min-height: 400px; padding: var(--s5); background: var(--surface); border: 2px dashed var(--ink-2); border-radius: var(--radius); cursor: pointer; transition: background var(--snap); }
+.zone:hover, .over { background: var(--khaki-tint); border-color: var(--khaki); }
+.zone:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+.prompt { display: grid; justify-items: center; gap: var(--s1); text-align: center; }
+.promptTitle { font-size: var(--t24); font-weight: 700; line-height: 1.2; }
+
+.chosen { display: grid; justify-items: center; gap: var(--s3); width: 100%; }
+.chosenImage { max-height: 340px; width: auto; border-radius: var(--radius); }
+.chosenName { font-family: var(--font-data); font-size: var(--t12); color: var(--ink-2); overflow-wrap: anywhere; text-align: center; }
+
+.picker { background: var(--surface); border: var(--rule); border-radius: var(--radius); overflow: hidden; min-width: 0; }
+.pickerHead { padding: var(--s3) var(--s4); }
+.pickerTitle { font-size: var(--t18); font-weight: 700; }
+.photo { position: relative; line-height: 0; }
+.photoImage { width: 100%; height: auto; }
+.faceBox { position: absolute; padding: 0; border: 3px solid var(--saffron); background: transparent; cursor: pointer; }
+.faceBox:hover { border-color: var(--navy); }
+.faceBox:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.faceLabel { position: absolute; left: -3px; bottom: 100%; padding: 2px var(--s2); background: var(--navy); color: var(--on-navy); font-size: var(--t13); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+
+.slip { display: flex; flex-direction: column; background: var(--surface); border: var(--rule); border-radius: var(--radius); min-width: 0; }
+.fields { padding-top: var(--s2); }
+.actions { display: grid; gap: var(--s3); padding: var(--s3) var(--s4); }
+.notice { margin-top: auto; padding: var(--s3) var(--s4); border-top: var(--rule); color: var(--ink-2); font-size: var(--t13); }
+
+.recent { background: var(--surface); border: var(--rule); border-radius: var(--radius); overflow: hidden; }
+
+@media (max-width: 960px) { .desk { grid-template-columns: 1fr; } .zone { min-height: 240px; } .content { padding: var(--s4); } }

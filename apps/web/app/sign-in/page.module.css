@@ -1,0 +1,27 @@
+/* The same tricolour navbar as the inner pages. */
+.nav { background: var(--band-white); border-top: 12px solid var(--saffron); border-bottom: 12px solid var(--india-green); }
+.navInner { display: flex; justify-content: space-between; gap: var(--s4); padding: var(--s3) clamp(var(--s5), 7vw, 112px); font-size: var(--t15); font-weight: 600; color: var(--navy); }
+
+.page { min-height: calc(100vh - 70px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(380px, 480px); }
+
+.intro { display: flex; flex-direction: column; justify-content: center; gap: var(--s5); padding: var(--s7) clamp(var(--s5), 7vw, 112px); background: var(--khaki-tint); border-right: 2px solid var(--khaki); }
+.wordmark { font-size: var(--t48); font-weight: 800; line-height: 1.05; color: var(--navy); }
+[data-theme="night"] .wordmark { color: var(--ink); }
+.odia { margin-top: var(--s1); font-family: var(--font-odia); font-size: var(--t24); font-weight: 600; color: var(--khaki-ink); }
+.rules { display: grid; gap: var(--s3); max-width: 52ch; padding-top: var(--s5); border-top: 1px solid var(--khaki); }
+.rule { display: grid; grid-template-columns: 28px 1fr; color: var(--ink-2); }
+.ruleNumber { font-family: var(--font-data); font-size: var(--t13); color: var(--khaki-ink); line-height: 1.7; }
+
+.side { display: flex; flex-direction: column; justify-content: center; gap: var(--s5); padding: var(--s6) var(--s5); background: var(--surface); }
+.formTitle { padding: 0 var(--s4) var(--s2); font-size: var(--t24); font-weight: 700; line-height: 1.2; }
+.actions { padding: var(--s3) var(--s4); }
+
+.mock { margin: 0 var(--s4); border: var(--rule); border-radius: var(--radius); }
+.mockTitle { padding: var(--s2) var(--s3); background: var(--surface-2); font-size: var(--t13); font-weight: 600; }
+.mockRow { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); border-top: var(--rule); }
+
+@media (max-width: 860px) {
+  .page { grid-template-columns: 1fr; }
+  .intro { border-right: 0; border-bottom: 2px solid var(--khaki); padding: var(--s6) var(--s5); }
+  .wordmark { font-size: var(--t32); }
+}

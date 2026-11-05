@@ -1,0 +1,3 @@
+.must { padding: var(--s3) var(--s5); background: var(--possible-tint); color: var(--possible); font-weight: 600; }
+.form { max-width: 520px; margin: var(--s5) auto; padding: var(--s3) 0; background: var(--surface); border: var(--rule); border-radius: var(--radius); }
+.actions { display: grid; gap: var(--s3); padding: var(--s3) var(--s4); }

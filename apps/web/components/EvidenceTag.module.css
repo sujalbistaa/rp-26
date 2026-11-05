@@ -1,0 +1,4 @@
+.tag { background: var(--surface); border: var(--rule); border-radius: var(--radius); overflow: hidden; min-width: 0; }
+.frame { position: relative; background: var(--surface-2); }
+.image { width: 100%; height: auto; }
+.caption { padding: var(--s1) var(--s2); border-top: var(--rule); font-family: var(--font-data); font-size: var(--t12); font-variant-numeric: tabular-nums slashed-zero; color: var(--ink-2); line-height: 1.5; overflow-wrap: anywhere; }

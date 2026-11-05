@@ -1,0 +1,171 @@
+# Production overlay. Run with both files:
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml up -d
+#
+# TLS on every hop: browser to edge, edge to web and api, api to db and redis.
+# Run scripts/gen_certs.sh first, or mount department-issued certificates at infra/certs.
+# Evidence objects are encrypted by the API before they reach the volume.
+name: rkl
+
+x-api: &api
+  build:
+    context: ..
+    dockerfile: services/api/Dockerfile
+  env_file: ../.env.production
+  environment:
+    RKL_ENV: production
+    RKL_STORAGE_DIR: /evidence
+    RKL_MODEL_DIR: /models
+    SSL_CERT_FILE: /certs/ca.crt
+  volumes:
+    - evidence:/evidence
+    - ../data/models:/models:ro
+    - ./certs/ca.crt:/certs/ca.crt:ro
+    - ./certs/api.crt:/certs/api.crt:ro
+    - ./certs/api.key:/certs/api.key:ro
+  networks: [internal]
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  db:
+    ports: !reset []
+    networks: [internal]
+    restart: unless-stopped
+    environment:
+      RKL_APP_DB_PASSWORD: ${RKL_APP_DB_PASSWORD:?set RKL_APP_DB_PASSWORD}
+    # Postgres refuses a key it doesn't own, so take a private copy at start.
+    entrypoint:
+      - bash
+      - -c
+      - |
+        install -o postgres -g postgres -m 600 /certs/db.key /var/lib/postgresql/db.key
+        exec docker-entrypoint.sh postgres \
+          -c ssl=on \
+          -c ssl_cert_file=/certs/db.crt \
+          -c ssl_key_file=/var/lib/postgresql/db.key \
+          -c password_encryption=scram-sha-256
+    command: !reset []
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+      - ./certs/db.crt:/certs/db.crt:ro
+      - ./certs/db.key:/certs/db.key:ro
+
+  redis:
+    ports: !reset []
+    networks: [internal]
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${RKL_REDIS_PASSWORD:?set RKL_REDIS_PASSWORD}
+      - --port
+      - "0"
+      - --tls-port
+      - "6379"
+      - --tls-cert-file
+      - /certs/redis.crt
+      - --tls-key-file
+      - /certs/redis.key
+      - --tls-ca-cert-file
+      - /certs/ca.crt
+      - --tls-auth-clients
+      - "no"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli --tls --cacert /certs/ca.crt --sni redis -a "$$RKL_REDIS_PASSWORD" --no-auth-warning ping
+    environment:
+      RKL_REDIS_PASSWORD: ${RKL_REDIS_PASSWORD:?set RKL_REDIS_PASSWORD}
+    volumes:
+      - ./certs/ca.crt:/certs/ca.crt:ro
+      - ./certs/redis.crt:/certs/redis.crt:ro
+      - ./certs/redis.key:/certs/redis.key:ro
+
+  migrate:
+    <<: *api
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    # Migrations run as the table owner. The app runs as rkl_app, which can't drop triggers.
+    environment:
+      RKL_ENV: production
+      RKL_DATABASE_URL: ${RKL_MIGRATE_DATABASE_URL:?set RKL_MIGRATE_DATABASE_URL}
+      SSL_CERT_FILE: /certs/ca.crt
+
+  api:
+    <<: *api
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8100"
+      - --workers
+      - "2"
+      - --ssl-keyfile
+      - /certs/api.key
+      - --ssl-certfile
+      - /certs/api.crt
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "*"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    <<: *api
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  scheduler:
+    <<: *api
+    command: ["python", "-m", "app.scheduler"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - ./certs/web.crt:/certs/web.crt:ro
+      - ./certs/web.key:/certs/web.key:ro
+    networks: [internal]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  edge:
+    image: nginx:1.27-alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/edge.crt:/certs/edge.crt:ro
+      - ./certs/edge.key:/certs/edge.key:ro
+      - ./certs/ca.crt:/certs/ca.crt:ro
+    networks: [internal, front]
+    restart: unless-stopped
+    depends_on: [api, web]
+
+networks:
+  # No route out. The app containers can't reach anything beyond the department network.
+  internal:
+    internal: true
+  front: {}
+
+volumes:
+  evidence:

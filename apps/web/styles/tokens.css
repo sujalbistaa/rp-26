@@ -1,0 +1,59 @@
+/* The single source of truth. Read this before touching any UI. */
+:root {
+  --bg:        #F5F6F8;  /* page */
+  --surface:   #FFFFFF;  /* panels */
+  --surface-2: #EDF0F4;  /* wells, table heads, alternate rows */
+  --line:      #D7DDE5;  /* borders and rules */
+
+  --ink:   #13233A;      /* text: 14.6:1 on bg */
+  --ink-2: #4F5D73;      /* secondary text: 6.2:1 on bg */
+
+  --navy:    #0F2C52;    /* police blue: nav, primary actions */
+  --navy-2:  #1C4479;    /* hover on navy */
+  --on-navy: #FFFFFF;
+  --on-navy-2: #C9D5E6;  /* inactive nav: 9.4:1 on navy */
+
+  --khaki:      #B08D57; /* uniform khaki: rules and accents, never text */
+  --khaki-ink:  #6E5430; /* khaki text: 6.2:1 on khaki-tint */
+  --khaki-tint: #F6EFE2; /* page title bands */
+
+  /* The national colours. The navbar, the sign-in stripe, face boxes and the lead notice. */
+  --saffron: #FF9933;
+  --band-white: #FFFFFF;
+  --india-green: #138808;
+
+  /* Match bands. Every band also has its word. */
+  --strong: #0B6028;   --strong-tint: #E3F2E7;
+  --possible: #8A4F00; --possible-tint: #FCEFD9;
+  --weak: #4F5D73;     --weak-tint: #EDF0F4;
+  --danger: #A8201A;   --danger-tint: #FBE9E7;
+
+  --rule: 1px solid var(--line);
+  --radius: 4px;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
+
+  /* Type scale. Nothing in between. */
+  --t12: 12px; --t13: 13px; --t15: 15px; --t18: 18px;
+  --t24: 24px; --t32: 32px; --t48: 48px;
+
+  /* One family for English and Odia, both by Ek Type, Mumbai. */
+  --font-ui: "Anek Latin", Verdana, sans-serif;
+  --font-odia: "Anek Odia", "Anek Latin", Verdana, sans-serif;
+  --font-data: "Atkinson Mono", "Courier New", monospace;
+
+  --page: 1280px;
+  --snap: 120ms ease;
+}
+
+[data-theme="night"] {  /* NIGHT SHIFT */
+  --bg: #0F1726; --surface: #172236; --surface-2: #1F2C44; --line: #2D3B55;
+  --ink: #E8ECF3; --ink-2: #A6B1C4;
+  --navy: #0B1B33; --navy-2: #1C2F4F;
+  --khaki-ink: #D8BE8E; --khaki-tint: #1F2838;
+  --strong: #7BD896;   --strong-tint: #15301F;
+  --possible: #F2B45A; --possible-tint: #33270F;
+  --weak: #A6B1C4;     --weak-tint: #1F2C44;
+  --danger: #FF9A90;   --danger-tint: #3A1715;
+}

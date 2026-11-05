@@ -1,0 +1,11 @@
+.modes { display: flex; gap: var(--s1); padding: 0 max(var(--s5), calc((100% - var(--page)) / 2 + var(--s5))); background: var(--surface); border-bottom: var(--rule); }
+.mode { padding: var(--s3) var(--s4); background: transparent; border: 0; border-bottom: 3px solid transparent; font-size: var(--t15); font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.mode:hover { color: var(--ink); }
+.mode:focus-visible { outline-offset: -3px; }
+.modeActive { color: var(--ink); border-bottom-color: var(--khaki); }
+.content { display: grid; gap: var(--s5); max-width: var(--page); margin: 0 auto; padding: var(--s5); }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); padding: var(--s2) 0; background: var(--surface); border: var(--rule); border-radius: var(--radius); }
+.actions { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--s4); padding: var(--s3) var(--s4); }
+.actions button { width: auto; min-width: 200px; }
+.batch { display: grid; gap: var(--s2); padding: var(--s4); background: var(--surface); border: var(--rule); border-radius: var(--radius); }
+.report { background: var(--surface); border: var(--rule); border-radius: var(--radius); overflow: hidden; }

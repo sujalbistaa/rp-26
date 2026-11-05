@@ -1,0 +1,39 @@
+@import "../styles/tokens.css";
+@import "../styles/fonts.css";
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { background: var(--bg); color: var(--ink); -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-ui);
+  font-size: var(--t15);
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+img { display: block; max-width: 100%; }
+a { color: var(--navy); }
+[data-theme="night"] a { color: var(--ink); }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.label { font-size: var(--t12); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2); }
+
+/* Every ID, timestamp and percentage. */
+.data { font-family: var(--font-data); font-size: var(--t13); font-variant-numeric: tabular-nums slashed-zero; }
+
+.muted { color: var(--ink-2); }
+
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

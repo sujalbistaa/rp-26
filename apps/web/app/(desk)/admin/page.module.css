@@ -1,0 +1,9 @@
+.content { display: grid; gap: var(--s5); max-width: var(--page); margin: 0 auto; padding: var(--s5); }
+.panel { background: var(--surface); border: var(--rule); border-radius: var(--radius); overflow: hidden; }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); padding-top: var(--s2); }
+.actions { grid-column: 1 / -1; padding: var(--s3) var(--s4); }
+.select { width: 104px; height: 30px; padding: 0 var(--s2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-data); font-size: var(--t12); }
+.secret { display: grid; grid-template-columns: 200px 1fr; background: var(--possible-tint); }
+.secret dt, .secret dd { padding: var(--s2) var(--s4); border-top: var(--rule); }
+.help { padding: var(--s3) var(--s4); border-bottom: var(--rule); color: var(--ink-2); }
+.floor { display: flex; gap: var(--s1); }

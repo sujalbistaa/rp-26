@@ -1,0 +1,10 @@
+.wrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { border-bottom: var(--rule); padding: var(--s2) var(--s4); text-align: left; vertical-align: middle; }
+.table th { background: var(--surface-2); font-size: var(--t12); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.table td { font-family: var(--font-data); font-size: var(--t13); font-variant-numeric: tabular-nums slashed-zero; }
+.table td.text { font-family: var(--font-ui); font-size: var(--t15); }
+.table tbody tr:hover { background: var(--bg); }
+.empty { padding: var(--s5) var(--s4); color: var(--ink-2); }
+.pager { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); }
+.pagerButtons { display: flex; gap: var(--s2); }

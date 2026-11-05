@@ -1,0 +1,5 @@
+.chip { display: inline-block; padding: 2px var(--s2); border-radius: var(--radius); font-size: var(--t12); font-weight: 700; letter-spacing: 0.05em; line-height: 1.5; }
+.strong { background: var(--strong-tint); color: var(--strong); }
+.possible { background: var(--possible-tint); color: var(--possible); }
+.weak { background: var(--weak-tint); color: var(--weak); }
+.purged { background: var(--danger-tint); color: var(--danger); }

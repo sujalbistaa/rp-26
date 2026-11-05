@@ -1,0 +1,4 @@
+/* Self-hosted only. Licences are in public/fonts/LICENSES/. */
+@font-face { font-family: "Anek Latin"; src: url("/fonts/anek-latin-variable.woff2") format("woff2"); font-weight: 100 800; font-stretch: 75% 125%; font-display: swap; }
+@font-face { font-family: "Anek Odia"; src: url("/fonts/anek-odia-variable.woff2") format("woff2"); font-weight: 100 800; font-stretch: 75% 125%; font-display: swap; }
+@font-face { font-family: "Atkinson Mono"; src: url("/fonts/atkinson-mono.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
